@@ -799,10 +799,10 @@ export default function App() {
         bayar: t.bayar, kembalian: t.kembalian,
       })));
 
-      const stok = await sbSelect("stok_awal");
-      if (stok) {
+      const stok = await sbFetch("stok_awal?select=*");
+      if (stok && Array.isArray(stok)) {
         const obj = {};
-        stok.forEach(s => { obj[s.tanggal] = s.data; });
+        stok.forEach(s => { if(s.tanggal && s.data) obj[s.tanggal] = s.data; });
         setStokData(obj);
       }
 
@@ -861,10 +861,11 @@ export default function App() {
   const handleSetStok = async (updater) => {
     const newStok = typeof updater === "function" ? updater(stokData) : updater;
     setStokData(newStok);
-    // Save all dates
-    for (const [tanggal, data] of Object.entries(newStok)) {
-      await sbFetch("stok_awal?tanggal=eq."+tanggal, "DELETE");
-      await sbFetch("stok_awal", "POST", { tanggal, data });
+    const today = toDateKey(new Date());
+    if (newStok[today]) {
+      // Delete existing then insert fresh
+      await sbFetch(`stok_awal?tanggal=eq.${today}`, "DELETE");
+      await sbFetch("stok_awal", "POST", { tanggal: today, data: newStok[today] });
     }
   };
 
