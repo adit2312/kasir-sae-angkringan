@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 
 // ── SUPABASE CONFIG ──
@@ -789,34 +788,38 @@ export default function App() {
   const [shiftOpen, setShiftOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
-  // Load data from Supabase on mount
+  // Load data from Supabase on mount + auto-refresh every 10s
+  const loadData = async (showSync=false) => {
+    if (showSync) setSyncing(true);
+    try {
+      const trx = await sbSelect("transaksi");
+      if (trx) setHistory(trx.map(t => ({
+        id: t.id, timestamp: t.timestamp, kasirName: t.kasir_name,
+        pelanggan: t.pelanggan, grandTotal: t.grand_total,
+        bayar: t.bayar, kembalian: t.kembalian,
+      })));
+
+      const stok = await sbSelect("stok_awal");
+      if (stok) {
+        const obj = {};
+        stok.forEach(s => { obj[s.tanggal] = s.data; });
+        setStokData(obj);
+      }
+
+      const lg = await sbSelect("activity_logs");
+      if (lg) setLogs(lg.map(l => ({
+        id: l.id, timestamp: l.timestamp, user: l.username,
+        action: l.action, detail: l.detail,
+      })));
+    } catch(e) { console.error("Load error:", e); }
+    if (showSync) setSyncing(false);
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      setSyncing(true);
-      try {
-        const trx = await sbSelect("transaksi");
-        if (trx) setHistory(trx.map(t => ({
-          id: t.id, timestamp: t.timestamp, kasirName: t.kasir_name,
-          pelanggan: t.pelanggan, grandTotal: t.grand_total,
-          bayar: t.bayar, kembalian: t.kembalian,
-        })));
-
-        const stok = await sbSelect("stok_awal");
-        if (stok) {
-          const obj = {};
-          stok.forEach(s => { obj[s.tanggal] = s.data; });
-          setStokData(obj);
-        }
-
-        const lg = await sbSelect("activity_logs");
-        if (lg) setLogs(lg.map(l => ({
-          id: l.id, timestamp: l.timestamp, user: l.username,
-          action: l.action, detail: l.detail,
-        })));
-      } catch(e) { console.error("Load error:", e); }
-      setSyncing(false);
-    };
-    loadData();
+    loadData(true);
+    // Auto-refresh every 10 seconds
+    const interval = setInterval(() => loadData(false), 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const addLog = async (log) => {
