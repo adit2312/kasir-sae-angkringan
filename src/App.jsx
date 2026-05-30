@@ -861,9 +861,10 @@ export default function App() {
   const handleSetStok = async (updater) => {
     const newStok = typeof updater === "function" ? updater(stokData) : updater;
     setStokData(newStok);
-    const today = toDateKey(new Date());
-    if (newStok[today]) {
-      await sbFetch("stok_awal", "POST", { tanggal: today, data: newStok[today] });
+    // Save all dates
+    for (const [tanggal, data] of Object.entries(newStok)) {
+      await sbFetch("stok_awal?tanggal=eq."+tanggal, "DELETE");
+      await sbFetch("stok_awal", "POST", { tanggal, data });
     }
   };
 
